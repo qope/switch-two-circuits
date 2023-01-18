@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 plonky2 = {path="./plonky2/plonky2"}
+anyhow = "1.0"
+hashbrown = { version = "0.12.3", default-features = false, features = ["ahash", "serde"] }

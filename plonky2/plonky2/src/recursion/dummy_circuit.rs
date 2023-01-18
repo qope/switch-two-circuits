@@ -51,7 +51,7 @@ where
 /// Generate a proof for a dummy circuit. The `public_inputs` parameter let the caller specify
 /// certain public inputs (identified by their indices) which should be given specific values.
 /// The rest will default to zero.
-pub(crate) fn dummy_proof<F, C, const D: usize>(
+pub fn dummy_proof<F, C, const D: usize>(
     circuit: &CircuitData<F, C, D>,
     nonzero_public_inputs: HashMap<usize, F>,
 ) -> anyhow::Result<ProofWithPublicInputs<F, C, D>>
@@ -68,11 +68,7 @@ where
 }
 
 /// Generate a circuit matching a given `CommonCircuitData`.
-pub(crate) fn dummy_circuit<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
->(
+pub fn dummy_circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
     common_data: &CommonCircuitData<F, D>,
 ) -> CircuitData<F, C, D> {
     let config = common_data.config.clone();
@@ -103,7 +99,7 @@ pub(crate) fn dummy_circuit<
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub(crate) fn dummy_proof_and_vk<C: GenericConfig<D, F = F> + 'static>(
+    pub fn dummy_proof_and_vk<C: GenericConfig<D, F = F> + 'static>(
         &mut self,
         common_data: &CommonCircuitData<F, D>,
     ) -> anyhow::Result<(ProofWithPublicInputsTarget<D>, VerifierCircuitTarget)>
