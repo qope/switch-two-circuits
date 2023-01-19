@@ -28,6 +28,9 @@ fn main() {
     let circuit0 = make_inner_circuit0::<C, F, H, D>();
     let circuit1 = make_inner_circuit1::<C, F, D>();
 
+    let DummyCircuit(dummy_data0, dummy_proof0) = circuit0.prove_dummy();
+    let DummyCircuit(dummy_data1, dummy_proof1) = circuit1.prove_dummy();
+
     let Circuit(_, data0, _) = &circuit0;
     let Circuit(_, data1, _) = &circuit1;
     let pt0 = builder.add_virtual_proof_with_pis::<C>(&data0.common);
@@ -40,7 +43,7 @@ fn main() {
     builder.verify_proof::<C>(&pt0, &vc0, &data0.common);
     builder.verify_proof::<C>(&pt1, &vc1, &data1.common);
 
-    let verify_circuit = CircuitType::Circuit0;
+    let verify_circuit = CircuitType::Circuit1;
 
     let time = match verify_circuit {
         CircuitType::Circuit0 => {
@@ -50,10 +53,9 @@ fn main() {
             pw.set_proof_with_pis_target(&pt0, &proof);
             pw.set_verifier_data_target(&vc0, &data0.verifier_only);
 
-            // circuit1のdummy proofを作る
-            let DummyCircuit(dummy_data, dummy_proof) = circuit1.prove_dummy();
-            pw.set_proof_with_pis_target(&pt1, &dummy_proof);
-            pw.set_verifier_data_target(&vc1, &dummy_data.verifier_only);
+            // circuit1のdummy proofをset
+            pw.set_proof_with_pis_target(&pt1, &dummy_proof1);
+            pw.set_verifier_data_target(&vc1, &dummy_data1.verifier_only);
             now.elapsed().as_millis()
         }
         CircuitType::Circuit1 => {
@@ -63,10 +65,9 @@ fn main() {
             pw.set_proof_with_pis_target(&pt1, &proof);
             pw.set_verifier_data_target(&vc1, &data1.verifier_only);
 
-            // circuit0のdummy proofを作る
-            let DummyCircuit(dummy_data, dummy_proof) = circuit0.prove_dummy();
-            pw.set_proof_with_pis_target(&pt0, &dummy_proof);
-            pw.set_verifier_data_target(&vc0, &dummy_data.verifier_only);
+            // circuit0のdummy proofをset
+            pw.set_proof_with_pis_target(&pt0, &dummy_proof0);
+            pw.set_verifier_data_target(&vc0, &dummy_data0.verifier_only);
             now.elapsed().as_millis()
         }
     };
