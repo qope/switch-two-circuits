@@ -24,6 +24,7 @@ const D: usize = 2;
 type F = GoldilocksField;
 type C = PoseidonGoldilocksConfig;
 
+// make conditional verifyc circuit target
 fn junction(
     builder: &mut CircuitBuilder<F, D>,
     data0a: &CircuitData<F, C, D>,
