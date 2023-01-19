@@ -1,9 +1,13 @@
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
-    hash::poseidon::PoseidonHash,
-    iop::witness::{PartialWitness, WitnessWrite},
+    hash::{hash_types::MerkleCapTarget, poseidon::PoseidonHash},
+    iop::{
+        target::BoolTarget,
+        witness::{PartialWitness, WitnessWrite},
+    },
     plonk::{
-        circuit_builder::CircuitBuilder, circuit_data::CircuitConfig,
+        circuit_builder::CircuitBuilder,
+        circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget},
         config::PoseidonGoldilocksConfig,
     },
 };
@@ -15,6 +19,48 @@ mod circuit_maker;
 use circuit_maker::{make_inner_circuit0, make_inner_circuit1, CircuitType};
 
 use crate::circuit_maker::{Circuit, DummyCircuit};
+
+const D: usize = 2;
+type F = GoldilocksField;
+type C = PoseidonGoldilocksConfig;
+
+fn junction(
+    builder: &mut CircuitBuilder<F, D>,
+    data0a: &CircuitData<F, C, D>,
+    data0b: &CircuitData<F, C, D>,
+    data1a: &CircuitData<F, C, D>,
+    data1b: &CircuitData<F, C, D>,
+) -> (BoolTarget, VerifierCircuitTarget, VerifierCircuitTarget) {
+    let [scap0a, scap0b, scap1a, scap1b] = [data0a, data0b, data1a, data1b].map(|x| {
+        MerkleCapTarget(
+            x.verifier_only
+                .constants_sigmas_cap
+                .0
+                .iter()
+                .cloned()
+                .map(|t| builder.constant_hash(t))
+                .collect::<Vec<_>>(),
+        )
+    });
+    let [cd0a, cd0b, cd1a, cd1b] = [data0a, data0b, data1a, data1b]
+        .map(|x| builder.constant_hash(x.verifier_only.circuit_digest));
+    let b = builder.add_virtual_bool_target_safe();
+    let b_not = builder.not(b);
+    let scap0 = builder.select_cap(b, &scap0a, &scap0b);
+    let cd0 = builder.select_hash(b, cd0a, cd0b);
+    let scap1 = builder.select_cap(b_not, &scap1a, &scap1b);
+    let cd1 = builder.select_hash(b_not, cd1a, cd1b);
+
+    let vc0 = VerifierCircuitTarget {
+        constants_sigmas_cap: scap0,
+        circuit_digest: cd0,
+    };
+    let vc1 = VerifierCircuitTarget {
+        constants_sigmas_cap: scap1,
+        circuit_digest: cd1,
+    };
+    (b, vc0, vc1)
+}
 
 fn main() {
     const D: usize = 2;
@@ -37,8 +83,7 @@ fn main() {
     builder.register_public_inputs(&pt0.public_inputs);
     let pt1 = builder.add_virtual_proof_with_pis::<C>(&data1.common);
     builder.register_public_inputs(&pt1.public_inputs);
-    let vc0 = builder.add_virtual_verifier_data(data0.common.config.fri_config.cap_height);
-    let vc1 = builder.add_virtual_verifier_data(data1.common.config.fri_config.cap_height);
+    let (b, vc0, vc1) = junction(&mut builder, data0, &dummy_data0, data1, &dummy_data1);
 
     builder.verify_proof::<C>(&pt0, &vc0, &data0.common);
     builder.verify_proof::<C>(&pt1, &vc1, &data1.common);
@@ -48,11 +93,12 @@ fn main() {
     let time = match verify_circuit {
         CircuitType::Circuit0 => {
             let now = Instant::now();
+            // circuit0: real, circuit1: dummyの回路に切り替え
+            pw.set_bool_target(b, true);
             // circuit0のproofを作る
             let proof = circuit0.prove().unwrap();
             pw.set_proof_with_pis_target(&pt0, &proof);
             pw.set_verifier_data_target(&vc0, &data0.verifier_only);
-
             // circuit1のdummy proofをset
             pw.set_proof_with_pis_target(&pt1, &dummy_proof1);
             pw.set_verifier_data_target(&vc1, &dummy_data1.verifier_only);
@@ -60,6 +106,9 @@ fn main() {
         }
         CircuitType::Circuit1 => {
             let now = Instant::now();
+            // circuit1: real, circuit0: dummyの回路に切り替え
+            pw.set_bool_target(b, false);
+
             // circuit1のproofを作る
             let proof = circuit1.prove().unwrap();
             pw.set_proof_with_pis_target(&pt1, &proof);

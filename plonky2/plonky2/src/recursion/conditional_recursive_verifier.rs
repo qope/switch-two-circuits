@@ -137,7 +137,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Computes `if b { h0 } else { h1 }`.
-    pub(crate) fn select_hash(
+    pub fn select_hash(
         &mut self,
         b: BoolTarget,
         h0: HashOutTarget,
@@ -149,7 +149,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Computes `if b { cap0 } else { cap1 }`.
-    fn select_cap(
+    pub fn select_cap(
         &mut self,
         b: BoolTarget,
         cap0: &MerkleCapTarget,
