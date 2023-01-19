@@ -64,9 +64,6 @@ fn junction(
 }
 
 fn main() {
-    const D: usize = 2;
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
     type H = PoseidonHash;
     let config = CircuitConfig::standard_recursion_config();
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
