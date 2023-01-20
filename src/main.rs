@@ -1,6 +1,9 @@
 use plonky2::{
-    field::goldilocks_field::GoldilocksField,
-    hash::{hash_types::MerkleCapTarget, poseidon::PoseidonHash},
+    field::{extension::Extendable, goldilocks_field::GoldilocksField},
+    hash::{
+        hash_types::{MerkleCapTarget, RichField},
+        poseidon::PoseidonHash,
+    },
     iop::{
         target::BoolTarget,
         witness::{PartialWitness, WitnessWrite},
@@ -8,7 +11,7 @@ use plonky2::{
     plonk::{
         circuit_builder::CircuitBuilder,
         circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget},
-        config::PoseidonGoldilocksConfig,
+        config::{AlgebraicHasher, GenericConfig, Hasher, PoseidonGoldilocksConfig},
     },
 };
 
@@ -20,18 +23,20 @@ use circuit_maker::{make_inner_circuit0, make_inner_circuit1, CircuitType};
 
 use crate::circuit_maker::{Circuit, DummyCircuit};
 
-const D: usize = 2;
-type F = GoldilocksField;
-type C = PoseidonGoldilocksConfig;
-
 // make conditional verifyc circuit target
-fn junction(
+fn junction<F, H, C, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     data0a: &CircuitData<F, C, D>,
     data0b: &CircuitData<F, C, D>,
     data1a: &CircuitData<F, C, D>,
     data1b: &CircuitData<F, C, D>,
-) -> (BoolTarget, VerifierCircuitTarget, VerifierCircuitTarget) {
+) -> (BoolTarget, VerifierCircuitTarget, VerifierCircuitTarget)
+where
+    F: RichField + Extendable<D>,
+    H: Hasher<F> + AlgebraicHasher<F>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>,
+{
     let [scap0a, scap0b, scap1a, scap1b] = [data0a, data0b, data1a, data1b].map(|x| {
         MerkleCapTarget(
             x.verifier_only
@@ -64,6 +69,9 @@ fn junction(
 }
 
 fn main() {
+    const D: usize = 2;
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
     type H = PoseidonHash;
     let config = CircuitConfig::standard_recursion_config();
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
@@ -81,7 +89,8 @@ fn main() {
     builder.register_public_inputs(&pt0.public_inputs);
     let pt1 = builder.add_virtual_proof_with_pis::<C>(&data1.common);
     builder.register_public_inputs(&pt1.public_inputs);
-    let (b, vc0, vc1) = junction(&mut builder, data0, &dummy_data0, data1, &dummy_data1);
+    let (b, vc0, vc1) =
+        junction::<F, H, C, D>(&mut builder, data0, &dummy_data0, data1, &dummy_data1);
 
     builder.verify_proof::<C>(&pt0, &vc0, &data0.common);
     builder.verify_proof::<C>(&pt1, &vc1, &data1.common);
