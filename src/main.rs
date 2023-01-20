@@ -11,7 +11,7 @@ use plonky2::{
     plonk::{
         circuit_builder::CircuitBuilder,
         circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget},
-        config::{AlgebraicHasher, GenericConfig, Hasher, PoseidonGoldilocksConfig},
+        config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig},
     },
 };
 
@@ -24,7 +24,7 @@ use circuit_maker::{make_inner_circuit0, make_inner_circuit1, CircuitType};
 use crate::circuit_maker::{Circuit, DummyCircuit};
 
 // make conditional verifyc circuit target
-fn junction<F, H, C, const D: usize>(
+fn junction<F, C, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     data0a: &CircuitData<F, C, D>,
     data0b: &CircuitData<F, C, D>,
@@ -33,7 +33,6 @@ fn junction<F, H, C, const D: usize>(
 ) -> (BoolTarget, VerifierCircuitTarget, VerifierCircuitTarget)
 where
     F: RichField + Extendable<D>,
-    H: Hasher<F> + AlgebraicHasher<F>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
@@ -89,8 +88,7 @@ fn main() {
     builder.register_public_inputs(&pt0.public_inputs);
     let pt1 = builder.add_virtual_proof_with_pis::<C>(&data1.common);
     builder.register_public_inputs(&pt1.public_inputs);
-    let (b, vc0, vc1) =
-        junction::<F, H, C, D>(&mut builder, data0, &dummy_data0, data1, &dummy_data1);
+    let (b, vc0, vc1) = junction::<F, C, D>(&mut builder, data0, &dummy_data0, data1, &dummy_data1);
 
     builder.verify_proof::<C>(&pt0, &vc0, &data0.common);
     builder.verify_proof::<C>(&pt1, &vc1, &data1.common);
